@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>名画クイズ 〜この絵を描いたのは誰？〜</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14110f;
+    --bg-soft:#1e1a17;
+    --panel:#241f1b;
+    --line:#3a322c;
+    --ink:#f2ece3;
+    --ink-dim:#a89d90;
+    --gold:#c9a227;
+    --gold-soft:#e0c46a;
+    --ok:#3f9e63;
+    --ok-soft:#5ec483;
+    --ng:#b8443c;
+    --ng-soft:#e0706a;
+    --radius:12px;
+    --serif:"Noto Serif JP",serif;
+    --sans:"Noto Sans JP",system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #2b241e 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px 64px}
+
+  /* ---------- 共通パーツ ---------- */
+  .btn{
+    font-family:var(--sans);
+    font-size:1rem;
+    font-weight:700;
+    color:var(--bg);
+    background:linear-gradient(180deg,var(--gold-soft),var(--gold));
+    border:none;
+    border-radius:999px;
+    padding:14px 34px;
+    cursor:pointer;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{
+    background:transparent;
+    color:var(--ink-dim);
+    border:1px solid var(--line);
+    font-weight:500;
+  }
+  .btn.ghost:hover{color:var(--ink);border-color:var(--ink-dim)}
+  .screen{display:none;animation:fade .35s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- タイトル画面 ---------- */
+  .title-card{text-align:center;padding:48px 8px 8px}
+  .kicker{
+    font-family:var(--serif);
+    letter-spacing:.42em;
+    font-size:.78rem;
+    color:var(--gold);
+    text-indent:.42em;
+    margin:0 0 18px;
+  }
+  h1{
+    font-family:var(--serif);
+    font-size:clamp(1.9rem,6vw,2.9rem);
+    font-weight:600;
+    margin:0 0 6px;
+    line-height:1.35;
+  }
+  .sub{color:var(--ink-dim);margin:0 0 34px;font-size:.95rem}
+  .rule{
+    width:64px;height:1px;background:var(--gold);
+    margin:0 auto 34px;opacity:.7;
+  }
+  .length-pick{
+    display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;
+  }
+  .chip{
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--ink-dim);
+    border-radius:999px;
+    padding:10px 22px;
+    font-size:.9rem;
+    font-weight:500;
+    cursor:pointer;
+    font-family:var(--sans);
+    transition:.15s;
+  }
+  .chip[aria-pressed="true"]{
+    border-color:var(--gold);
+    color:var(--gold-soft);
+    background:#2c2519;
+  }
+  .note{
+    max-width:560px;margin:40px auto 0;
+    font-size:.8rem;color:#7e7368;line-height:1.9;
+    border-top:1px solid var(--line);padding-top:20px;
+  }
+
+  /* ---------- 出題画面 ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;margin-bottom:14px;
+  }
+  .counter{font-family:var(--serif);font-size:.95rem;color:var(--ink-dim)}
+  .counter b{color:var(--gold-soft);font-size:1.3rem;margin:0 2px}
+  .score-badge{font-size:.85rem;color:var(--ink-dim)}
+  .score-badge b{color:var(--ink)}
+  .progress{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-bottom:22px}
+  .progress > i{display:block;height:100%;width:0;background:var(--gold);transition:width .4s ease}
+
+  .frame{
+    background:#0d0b0a;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.55);
+    margin-bottom:10px;
+  }
+  .stage{
+    position:relative;
+    height:min(52vh,440px);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    border-radius:4px;
+  }
+  .stage img{
+    max-width:100%;max-height:100%;
+    object-fit:contain;
+    display:block;
+    opacity:0;transition:opacity .45s ease;
+  }
+  .stage img.shown{opacity:1}
+  .loading{
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:14px;
+    color:var(--ink-dim);font-size:.85rem;
+  }
+  .loading.hide{display:none}
+  .spinner{
+    width:30px;height:30px;border-radius:50%;
+    border:2px solid var(--line);border-top-color:var(--gold);
+    animation:spin .9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .prompt{
+    text-align:center;font-family:var(--serif);
+    font-size:1.05rem;color:var(--ink-dim);margin:0 0 18px;
+  }
+
+  /* ---------- 選択肢 ---------- */
+  .options{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+  }
+  .opt{
+    position:relative;
+    display:flex;align-items:center;gap:10px;
+    text-align:left;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--ink);
+    border-radius:10px;
+    padding:13px 15px;
+    font-family:var(--sans);
+    font-size:.95rem;
+    font-weight:500;
+    cursor:pointer;
+    min-height:52px;
+    transition:border-color .15s, background .15s, transform .1s;
+  }
+  .opt:hover:not(:disabled){border-color:var(--gold);background:#2c2620}
+  .opt:active:not(:disabled){transform:translateY(1px)}
+  .opt:disabled{cursor:default}
+  .opt .num{
+    flex:0 0 22px;height:22px;border-radius:5px;
+    background:var(--bg-soft);border:1px solid var(--line);
+    font-size:.7rem;color:var(--ink-dim);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;
+  }
+  .opt.correct{background:#1d3a29;border-color:var(--ok);color:#e6f6ec}
+  .opt.correct .num{background:var(--ok);border-color:var(--ok);color:#0d2016}
+  .opt.wrong{background:#3a1f1d;border-color:var(--ng);color:#fbe7e5}
+  .opt.wrong .num{background:var(--ng);border-color:var(--ng);color:#2a0f0d}
+  .opt.dim{opacity:.4}
+
+  /* ---------- 解説 ---------- */
+  .reveal{
+    margin-top:20px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--gold);
+    border-radius:10px;
+    padding:20px 22px;
+  }
+  .verdict{
+    font-family:var(--serif);font-size:1.15rem;font-weight:600;margin:0 0 10px;
+  }
+  .verdict.ok{color:var(--ok-soft)}
+  .verdict.ng{color:var(--ng-soft)}
+  .work-title{font-family:var(--serif);font-size:1.25rem;margin:0 0 4px}
+  .work-meta{font-size:.85rem;color:var(--ink-dim);margin:0 0 12px}
+  .work-desc{font-size:.92rem;margin:0;color:#ded5c9}
+  .reveal-actions{margin-top:20px;text-align:right}
+
+  /* ---------- 結果画面 ---------- */
+  .result-head{text-align:center;padding:32px 0 8px}
+  .big-score{font-family:var(--serif);font-size:clamp(3rem,14vw,5rem);line-height:1;color:var(--gold-soft);margin:8px 0}
+  .big-score small{font-size:.3em;color:var(--ink-dim);margin-left:6px}
+  .rank{font-family:var(--serif);font-size:1.4rem;margin:14px 0 6px}
+  .rank-note{color:var(--ink-dim);font-size:.92rem;margin:0 0 34px}
+  .review-h{
+    font-family:var(--serif);font-size:1rem;color:var(--ink-dim);
+    border-bottom:1px solid var(--line);padding-bottom:10px;margin:0 0 6px;
+  }
+  .review-item{
+    display:flex;gap:14px;align-items:center;
+    padding:12px 4px;border-bottom:1px solid var(--line);
+  }
+  .review-item img{
+    width:64px;height:64px;object-fit:cover;border-radius:6px;
+    background:#0d0b0a;flex:0 0 64px;
+  }
+  .review-body{min-width:0}
+  .review-body p{margin:0;font-size:.9rem}
+  .review-body .rt{font-family:var(--serif);font-size:1rem}
+  .review-body .ra{font-size:.82rem;color:var(--ink-dim)}
+  .review-body .ra .yes{color:var(--ok-soft)}
+  .review-body .ra .no{color:var(--ng-soft)}
+  .result-actions{margin-top:34px;text-align:center;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+  .fail-note{
+    background:#3a1f1d;border:1px solid var(--ng);color:#fbe7e5;
+    border-radius:10px;padding:18px 20px;font-size:.9rem;
+  }
+  .fail-note code{background:rgba(0,0,0,.35);padding:2px 6px;border-radius:4px;font-size:.85em}
+
+  @media (max-width:520px){
+    .options{gap:8px}
+    .opt{font-size:.8rem;padding:10px;gap:7px;min-height:46px}
+    .opt .num{flex:0 0 18px;height:18px;font-size:.62rem}
+    .stage{height:30vh}
+    .frame{padding:8px}
+    .prompt{font-size:.92rem;margin-bottom:12px}
+    .wrap{padding-top:14px}
+    .progress{margin-bottom:14px}
+    .reveal{padding:16px 16px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ タイトル ============ -->
+  <section id="screen-start" class="screen active">
+    <div class="title-card">
+      <p class="kicker">PICTURE QUIZ</p>
+      <h1>名画クイズ<br>〜この絵を描いたのは誰？〜</h1>
+      <p class="sub">表示された作品を見て、その作者を10人の巨匠から選んでください。</p>
+      <div class="rule"></div>
+
+      <div class="length-pick" id="lengthPick">
+        <button class="chip" data-len="10" aria-pressed="true">10問で挑戦</button>
+        <button class="chip" data-len="0" aria-pressed="false">全問に挑戦</button>
+      </div>
+
+      <button class="btn" id="startBtn">スタート</button>
+
+      <p class="note">
+        画像は Wikipedia / Wikimedia Commons から読み込むパブリックドメインの作品です。<br>
+        再生には インターネット接続 が必要です。キーボードの <b>1〜9・0</b> キーでも回答できます。
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 出題 ============ -->
+  <section id="screen-quiz" class="screen">
+    <div class="topbar">
+      <p class="counter">第 <b id="qNow">1</b> 問 <span id="qTotal">/ 10</span></p>
+      <p class="score-badge">正解 <b id="scoreNow">0</b></p>
+    </div>
+    <div class="progress"><i id="progressBar"></i></div>
+
+    <div class="frame">
+      <div class="stage">
+        <div class="loading" id="loading"><div class="spinner"></div><span>作品を読み込み中…</span></div>
+        <img id="artImg" alt="出題された絵画">
+      </div>
+    </div>
+    <p class="prompt">この絵を描いた画家は誰でしょう？</p>
+
+    <div class="options" id="options"></div>
+
+    <div id="reveal" class="reveal" style="display:none">
+      <p class="verdict" id="verdict"></p>
+      <p class="work-title" id="workTitle"></p>
+      <p class="work-meta" id="workMeta"></p>
+      <p class="work-desc" id="workDesc"></p>
+      <div class="reveal-actions">
+        <button class="btn" id="nextBtn">次の問題へ</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 結果 ============ -->
+  <section id="screen-result" class="screen">
+    <div class="result-head">
+      <p class="kicker">RESULT</p>
+      <p class="big-score"><span id="finalScore">0</span><small id="finalTotal">/ 10</small></p>
+      <p class="rank" id="rankLabel"></p>
+      <p class="rank-note" id="rankNote"></p>
+    </div>
+    <h2 class="review-h">出題された作品</h2>
+    <div id="reviewList"></div>
+    <div class="result-actions">
+      <button class="btn" id="againBtn">もう一度挑戦する</button>
+      <button class="btn ghost" id="homeBtn">タイトルへ戻る</button>
+    </div>
+  </section>
+
+  <!-- ============ 読み込み失敗 ============ -->
+  <section id="screen-error" class="screen">
+    <div class="title-card">
+      <p class="kicker">ERROR</p>
+      <h1>作品を読み込めませんでした</h1>
+      <div class="rule"></div>
+      <div class="fail-note">
+        絵画の画像は Wikipedia から取得しています。<br>
+        インターネット接続、または <code>wikipedia.org</code> への通信がブロックされていないかご確認のうえ、再度お試しください。
+      </div>
+      <p style="margin-top:28px"><button class="btn" id="retryBtn">再読み込み</button></p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =======================================================================
+     選択肢（10人の画家）
+     ===================================================================== */
+  const ARTISTS = [
+    "レオナルド・ダ・ヴィンチ",
+    "ヨハネス・フェルメール",
+    "パブロ・ピカソ",
+    "クロード・モネ",
+    "ピエール＝オーギュスト・ルノワール",
+    "フィンセント・ファン・ゴッホ",
+    "アンディ・ウォーホル",
+    "サルバドール・ダリ",
+    "草間彌生",
+    "エドゥアール・マネ"
+  ];
+
+  /* =======================================================================
+     出題データ
+     ---------------------------------------------------------------------
+     wiki : 英語版 Wikipedia の記事名。ここから画像を自動取得します。
+     img  : 画像URLを直接指定したい場合に使用（wiki より優先）。
+            ローカル画像なら "images/xxx.jpg" のように書けます。
+
+     ※ ピカソ／ウォーホル／ダリ／草間彌生 の作品は著作権が存続しているため、
+       画像を同梱していません。出題に加えたい場合は、ご自身で用意した画像を
+       下の EXTRA_QUESTIONS に img で指定してください（末尾に記入例あり）。
+     ===================================================================== */
+  const QUESTIONS = [
+    // ---- レオナルド・ダ・ヴィンチ ----
+    { wiki:"Mona Lisa", title:"モナ・リザ", year:"1503〜1519年頃", place:"ルーヴル美術館（パリ）",
+      artist:"レオナルド・ダ・ヴィンチ",
+      desc:"輪郭をぼかす「スフマート」の技法で描かれた、世界で最も有名な肖像画。左右で高さの違う背景の風景が、微笑みの印象を揺らがせています。" },
+    { wiki:"The Last Supper (Leonardo)", title:"最後の晩餐", year:"1495〜1498年", place:"サンタ・マリア・デッレ・グラツィエ教会（ミラノ）",
+      artist:"レオナルド・ダ・ヴィンチ",
+      desc:"すべての遠近線がキリストの頭部へ収束する構図。「あなたがたのうち一人が私を裏切る」という言葉の直後の動揺が描かれています。" },
+    { wiki:"Lady with an Ermine", title:"白貂を抱く貴婦人", year:"1489〜1491年頃", place:"チャルトリスキ美術館（クラクフ）",
+      artist:"レオナルド・ダ・ヴィンチ",
+      desc:"ミラノ公の愛人チェチリア・ガッレラーニの肖像。振り向く姿勢と、腕の中の白貂の視線が、静止した肖像画に物語を与えています。" },
+
+    // ---- ヨハネス・フェルメール ----
+    { wiki:"Girl with a Pearl Earring", title:"真珠の耳飾りの少女", year:"1665年頃", place:"マウリッツハイス美術館（ハーグ）",
+      artist:"ヨハネス・フェルメール",
+      desc:"「北のモナ・リザ」とも呼ばれる一枚。特定の人物の肖像ではなく、空想上の人物を描く「トロニー」という様式の作品です。" },
+    { wiki:"The Milkmaid (Vermeer)", title:"牛乳を注ぐ女", year:"1658〜1661年頃", place:"アムステルダム国立美術館",
+      artist:"ヨハネス・フェルメール",
+      desc:"左の窓から差す光、細く落ちる牛乳の筋、そして高価なウルトラマリンで塗られた青いエプロン。日常の一瞬が静謐な儀式のように描かれています。" },
+    { wiki:"View of Delft", title:"デルフトの眺望", year:"1660〜1661年頃", place:"マウリッツハイス美術館（ハーグ）",
+      artist:"ヨハネス・フェルメール",
+      desc:"作者が生涯を過ごした故郷の街を描いた、数少ない風景画。プルーストがこの絵の「黄色い壁の小さな部分」を小説に書き込んだことでも知られます。" },
+
+    // ---- クロード・モネ ----
+    { wiki:"Impression, Sunrise", title:"印象・日の出", year:"1872年", place:"マルモッタン・モネ美術館（パリ）",
+      artist:"クロード・モネ",
+      desc:"ル・アーヴル港の朝もや。この題名を批評家が揶揄したことから「印象派」という呼び名が生まれました。美術史を動かした一枚です。" },
+    { wiki:"Water Lilies (Monet series)", title:"睡蓮", year:"1890年代〜1926年", place:"オランジュリー美術館ほか",
+      artist:"クロード・モネ",
+      desc:"ジヴェルニーの自邸の池を、晩年まで約250点描き続けた連作。水面と映り込みだけで画面を埋め、地平線を消し去りました。" },
+    { wiki:"Rouen Cathedral (Monet series)", title:"ルーアン大聖堂", year:"1892〜1894年", place:"オルセー美術館ほか",
+      artist:"クロード・モネ",
+      desc:"同じ大聖堂の正面を、時刻と天候を変えて30点以上描いた連作。主題は建物ではなく、そこに降りそそぐ光そのものです。" },
+    { wiki:"Haystacks (Monet series)", title:"積みわら", year:"1890〜1891年", place:"シカゴ美術館ほか",
+      artist:"クロード・モネ",
+      desc:"自宅近くの畑の積みわらを、季節と時間を追って描いた連作25点。若きカンディンスキーがこの絵に衝撃を受け、抽象絵画へ向かったと語っています。" },
+
+    // ---- ピエール＝オーギュスト・ルノワール ----
+    { wiki:"Bal du moulin de la Galette", title:"ムーラン・ド・ラ・ギャレットの舞踏会", year:"1876年", place:"オルセー美術館（パリ）",
+      artist:"ピエール＝オーギュスト・ルノワール",
+      desc:"モンマルトルの野外ダンスホールの日曜午後。木漏れ日が人々の顔や服の上で青紫の斑点となって踊る、幸福感にあふれた大作です。" },
+    { wiki:"Luncheon of the Boating Party", title:"舟遊びをする人々の昼食", year:"1880〜1881年", place:"フィリップス・コレクション（ワシントン）",
+      artist:"ピエール＝オーギュスト・ルノワール",
+      desc:"セーヌ河畔のレストランのテラス。左手前で子犬をあやす女性は、のちに作者の妻となるアリーヌ・シャリゴです。" },
+    { wiki:"Two Sisters (On the Terrace)", title:"二人の姉妹（テラスにて）", year:"1881年", place:"シカゴ美術館",
+      artist:"ピエール＝オーギュスト・ルノワール",
+      desc:"鮮やかな赤い帽子と、籠に盛られた毛糸玉の色の粒。人物を柔らかく美しく描くことに徹した、作者らしい一枚です。" },
+
+    // ---- フィンセント・ファン・ゴッホ ----
+    { wiki:"The Starry Night", title:"星月夜", year:"1889年", place:"ニューヨーク近代美術館（MoMA）",
+      artist:"フィンセント・ファン・ゴッホ",
+      desc:"サン＝レミの療養院の窓から見た夜明け前の空を、記憶と想像で描いたもの。渦を巻く筆致と、左端に炎のように立つ糸杉が特徴です。" },
+    { wiki:"Sunflowers (Van Gogh series)", title:"ひまわり", year:"1888〜1889年", place:"ロンドン・ナショナル・ギャラリーほか",
+      artist:"フィンセント・ファン・ゴッホ",
+      desc:"ゴーギャンを迎えるアルルの「黄色い家」を飾るために描かれた連作。黄色の上に黄色を重ねる、大胆な色づかいが際立ちます。" },
+    { wiki:"Café Terrace at Night", title:"夜のカフェテラス", year:"1888年", place:"クレラー・ミュラー美術館（オランダ）",
+      artist:"フィンセント・ファン・ゴッホ",
+      desc:"黒を一切使わずに夜を描いた作品。ガス灯のオレンジと、星のまたたく深い青の対比が画面を支えています。" },
+    { wiki:"Bedroom in Arles", title:"アルルの寝室", year:"1888年", place:"ファン・ゴッホ美術館（アムステルダム）",
+      artist:"フィンセント・ファン・ゴッホ",
+      desc:"「休息」を色で表そうとした自室の絵。歪んだ遠近法と平坦な色面には、浮世絵から受けた影響がうかがえます。" },
+
+    // ---- エドゥアール・マネ ----
+    { wiki:"Le Déjeuner sur l'herbe", title:"草上の昼食", year:"1863年", place:"オルセー美術館（パリ）",
+      artist:"エドゥアール・マネ",
+      desc:"落選展に出品され、スキャンダルを巻き起こした問題作。神話の装いを取り払い、同時代の人物として描いたことが当時の観客を憤慨させました。" },
+    { wiki:"A Bar at the Folies-Bergère", title:"フォリー・ベルジェールのバー", year:"1882年", place:"コートールド・ギャラリー（ロンドン）",
+      artist:"エドゥアール・マネ",
+      desc:"最晩年の代表作。背後の鏡に映る像の位置が現実とずれており、その「あり得ない反射」が長く議論を呼んでいます。" },
+    { wiki:"The Fifer", title:"笛を吹く少年", year:"1866年", place:"オルセー美術館（パリ）",
+      artist:"エドゥアール・マネ",
+      desc:"奥行きのない灰色の背景に少年を浮かび上がらせた一枚。ベラスケスと日本の版画に学んだ、平面的で明快な画面構成です。" }
+  ];
+
+  /* =======================================================================
+     追加問題（任意）
+     ---------------------------------------------------------------------
+     著作権が存続している画家の作品を出題したい場合は、ご自身で用意した画像を
+     images/ フォルダなどに置き、下の配列に追記してください。例：
+
+       { img:"images/my-picasso.jpg", title:"ゲルニカ", year:"1937年",
+         place:"ソフィア王妃芸術センター（マドリード）",
+         artist:"パブロ・ピカソ",
+         desc:"..." },
+
+     artist には ARTISTS のいずれかと完全に同じ文字列を指定してください。
+     ===================================================================== */
+  const EXTRA_QUESTIONS = [];
+
+  /* =======================================================================
+     画像の解決（Wikipedia API）
+     ===================================================================== */
+  const WIKI_API = "https://en.wikipedia.org/w/api.php";
+  const THUMB_SIZE = 1400;
+
+  async function resolveImages(items){
+    const titles = items.filter(q => !q.img && q.wiki).map(q => q.wiki);
+    if(!titles.length) return;
+
+    // 一度に問い合わせられるのは50件まで
+    const chunks = [];
+    for(let i=0;i<titles.length;i+=40) chunks.push(titles.slice(i,i+40));
+
+    const found = new Map(); // 最終タイトル -> URL
+    const alias = new Map(); // 要求タイトル -> 最終タイトル
+
+    for(const chunk of chunks){
+      const params = new URLSearchParams({
+        action:"query", format:"json", origin:"*", redirects:"1",
+        prop:"pageimages", piprop:"thumbnail|original",
+        pithumbsize:String(THUMB_SIZE), titles:chunk.join("|")
+      });
+      const res = await fetch(WIKI_API + "?" + params.toString());
+      if(!res.ok) throw new Error("wiki api " + res.status);
+      const data = await res.json();
+      const q = data.query || {};
+
+      for(const n of (q.normalized || [])) alias.set(n.from, n.to);
+      for(const r of (q.redirects  || [])) alias.set(r.from, r.to);
+
+      for(const key of Object.keys(q.pages || {})){
+        const page = q.pages[key];
+        const url = (page.thumbnail && page.thumbnail.source)
+                 || (page.original  && page.original.source);
+        if(url) found.set(page.title, url);
+      }
+    }
+
+    // 要求タイトル -> 正規化 -> リダイレクト先 と最大3段たどる
+    for(const item of items){
+      if(item.img || !item.wiki) continue;
+      let t = item.wiki;
+      for(let i=0;i<3 && !found.has(t) && alias.has(t);i++) t = alias.get(t);
+      if(found.has(t)) item.img = found.get(t);
+    }
+  }
+
+  function preload(url){
+    return new Promise(resolve => {
+      const im = new Image();
+      im.onload = () => resolve(true);
+      im.onerror = () => resolve(false);
+      im.src = url;
+    });
+  }
+
+  /* =======================================================================
+     状態
+     ===================================================================== */
+  const $ = id => document.getElementById(id);
+  let pool = null;          // 画像取得済みの全問題
+  let deck = [];            // 今回出題する問題
+  let index = 0;
+  let score = 0;
+  let answered = false;
+  let results = [];
+  let desiredLength = 10;   // 0 = 全問
+
+  const shuffle = arr => {
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  };
+
+  function show(name){
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    $("screen-" + name).classList.add("active");
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  /* =======================================================================
+     選択肢ボタンの生成（毎回同じ並び順）
+     ===================================================================== */
+  function buildOptions(){
+    const box = $("options");
+    box.innerHTML = "";
+    ARTISTS.forEach((name, i) => {
+      const b = document.createElement("button");
+      b.className = "opt";
+      b.type = "button";
+      b.dataset.artist = name;
+      b.innerHTML = '<span class="num">' + ((i + 1) % 10) + '</span><span>' + name + '</span>';
+      b.addEventListener("click", () => answer(name));
+      box.appendChild(b);
+    });
+  }
+
+  /* =======================================================================
+     出題
+     ===================================================================== */
+  function renderQuestion(){
+    answered = false;
+    const q = deck[index];
+
+    $("qNow").textContent = index + 1;
+    $("qTotal").textContent = "/ " + deck.length;
+    $("scoreNow").textContent = score;
+    $("progressBar").style.width = (index / deck.length * 100) + "%";
+
+    $("reveal").style.display = "none";
+    document.querySelectorAll(".opt").forEach(b => {
+      b.disabled = false;
+      b.classList.remove("correct","wrong","dim");
+    });
+
+    const img = $("artImg");
+    img.classList.remove("shown");
+    $("loading").classList.remove("hide");
+    img.onload = () => { img.classList.add("shown"); $("loading").classList.add("hide"); };
+    img.src = q.img;
+    img.alt = "絵画：" + q.title;
+  }
+
+  function answer(picked){
+    if(answered) return;
+    answered = true;
+
+    const q = deck[index];
+    const ok = picked === q.artist;
+    if(ok) score++;
+    results.push({ q, picked, ok });
+
+    document.querySelectorAll(".opt").forEach(b => {
+      b.disabled = true;
+      const a = b.dataset.artist;
+      if(a === q.artist)      b.classList.add("correct");
+      else if(a === picked)   b.classList.add("wrong");
+      else                    b.classList.add("dim");
+    });
+
+    $("scoreNow").textContent = score;
+    $("progressBar").style.width = ((index + 1) / deck.length * 100) + "%";
+
+    const v = $("verdict");
+    v.textContent = ok ? "正解！" : "不正解…　正解は " + q.artist;
+    v.className = "verdict " + (ok ? "ok" : "ng");
+    $("workTitle").textContent = q.title;
+    $("workMeta").textContent  = q.artist + "　/　" + q.year + "　/　" + q.place;
+    $("workDesc").textContent  = q.desc;
+    $("nextBtn").textContent   = (index === deck.length - 1) ? "結果を見る" : "次の問題へ";
+    $("reveal").style.display  = "block";
+    $("nextBtn").focus({preventScroll:true});
+    $("reveal").scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  function next(){
+    if(index === deck.length - 1){ renderResult(); return; }
+    index++;
+    renderQuestion();
+  }
+
+  /* =======================================================================
+     結果
+     ===================================================================== */
+  const RANKS = [
+    { min:1.00, label:"全問正解 — 美術館の主",   note:"完璧です。もう解説する側にまわれます。" },
+    { min:0.90, label:"キュレーター級",           note:"筆致も主題も見分けられています。お見事。" },
+    { min:0.70, label:"アートフリーク",           note:"代表作はしっかり押さえられています。" },
+    { min:0.50, label:"ギャラリー巡り中級",       note:"あと一歩。画家ごとの色づかいに注目してみましょう。" },
+    { min:0.25, label:"美術館デビュー",           note:"解説を読み返して、もう一度挑戦してみてください。" },
+    { min:0.00, label:"これから出会う名画たち",   note:"まずは一人の画家から。きっと見分けられるようになります。" }
+  ];
+
+  function renderResult(){
+    $("progressBar").style.width = "100%";
+    $("finalScore").textContent = score;
+    $("finalTotal").textContent = "/ " + deck.length;
+
+    const rate = score / deck.length;
+    const rank = RANKS.find(r => rate >= r.min);
+    $("rankLabel").textContent = rank.label;
+    $("rankNote").textContent  = rank.note;
+
+    const list = $("reviewList");
+    list.innerHTML = "";
+    results.forEach(r => {
+      const row = document.createElement("div");
+      row.className = "review-item";
+      const mark = r.ok
+        ? '<span class="yes">○ 正解</span>'
+        : '<span class="no">× ' + r.picked + '</span>';
+      row.innerHTML =
+        '<img src="' + r.q.img + '" alt="">' +
+        '<div class="review-body">' +
+          '<p class="rt">' + r.q.title + '</p>' +
+          '<p class="ra">' + r.q.artist + '　—　' + mark + '</p>' +
+        '</div>';
+      list.appendChild(row);
+    });
+
+    show("result");
+  }
+
+  /* =======================================================================
+     開始処理
+     ===================================================================== */
+  async function ensurePool(){
+    if(pool) return pool;
+    const all = QUESTIONS.concat(EXTRA_QUESTIONS);
+    await resolveImages(all);
+
+    // 画像が実際に表示できるものだけを採用する
+    const usable = [];
+    await Promise.all(all.map(async q => {
+      if(q.img && await preload(q.img)) usable.push(q);
+    }));
+    if(!usable.length) throw new Error("no images");
+
+    // 元の並び順を保っておく
+    pool = all.filter(q => usable.includes(q));
+    return pool;
+  }
+
+  async function start(){
+    $("startBtn").disabled = true;
+    $("startBtn").textContent = "読み込み中…";
+    try{
+      const src = await ensurePool();
+      deck = shuffle(src);
+      if(desiredLength > 0) deck = deck.slice(0, Math.min(desiredLength, deck.length));
+      index = 0; score = 0; results = [];
+      renderQuestion();
+      show("quiz");
+    }catch(e){
+      console.error(e);
+      show("error");
+    }finally{
+      $("startBtn").disabled = false;
+      $("startBtn").textContent = "スタート";
+    }
+  }
+
+  /* =======================================================================
+     イベント
+     ===================================================================== */
+  $("lengthPick").addEventListener("click", e => {
+    const chip = e.target.closest(".chip");
+    if(!chip) return;
+    desiredLength = Number(chip.dataset.len);
+    document.querySelectorAll("#lengthPick .chip").forEach(c => {
+      c.setAttribute("aria-pressed", String(c === chip));
+    });
+  });
+
+  $("startBtn").addEventListener("click", start);
+  $("nextBtn").addEventListener("click", next);
+  $("againBtn").addEventListener("click", start);
+  $("homeBtn").addEventListener("click", () => show("start"));
+  $("retryBtn").addEventListener("click", () => { pool = null; show("start"); start(); });
+
+  document.addEventListener("keydown", e => {
+    if(!$("screen-quiz").classList.contains("active")) return;
+    if(e.key >= "0" && e.key <= "9"){
+      const n = e.key === "0" ? 10 : Number(e.key);
+      const btn = document.querySelectorAll(".opt")[n - 1];
+      if(btn && !btn.disabled) btn.click();
+    }else if(answered && (e.key === "Enter" || e.key === " ")){
+      e.preventDefault();
+      next();
+    }
+  });
+
+  buildOptions();
+})();
+</script>
+</body>
+</html>
